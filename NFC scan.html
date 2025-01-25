@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Data via NFC</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            text-align: left;
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .output {
+            margin-top: 20px;
+            font-size: 1em;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Patient Data via NFC</h1>
+        <p>Tap your NFC card on your device to fetch the patient data:</p>
+        <button id="scanButton">Scan NFC Card</button>
+        <div id="output" class="output"></div>
+    </div>
+
+    <script>
+        const jsonData = {
+            "003102": {
+                "name": "Joe Patient",
+                "diseases": [
+                    "Alzheimer’s Disease",
+                    "Asthma"
+                ],
+                "allergies": [
+                    "Nuts",
+                    "Shellfish",
+                    "Pollen",
+                    "Penicillin"
+                ],
+                "current_medications": [
+                    "Cholinesterase Inhibitors",
+                    "NMDA Receptor Antagonist",
+                    "Donepezil and Memantine"
+                ],
+                "ice_numbers": {
+                    "facility": "516-423-1234",
+                    "help": "516-646-1234"
+                },
+                "facility_info": {
+                    "name": "Community Care Facility",
+                    "address": "7 Maplewood Road"
+                }
+            }
+        };
+
+        const scanButton = document.getElementById('scanButton');
+        const output = document.getElementById('output');
+
+        scanButton.addEventListener('click', async () => {
+            output.innerHTML = "Waiting for NFC scan...";
+
+            if (!("NDEFReader" in window)) {
+                output.innerHTML = "<span style='color: red;'>NFC is not supported on this device or browser.</span>";
+                return;
+            }
+
+            try {
+                const nfcReader = new NDEFReader();
+                await nfcReader.scan();
+
+                nfcReader.onreading = event => {
+                    const decoder = new TextDecoder();
+                    let userID = null;
+
+                    for (const record of event.message.records) {
+                        if (record.recordType === "text") {
+                            userID = decoder.decode(record.data);
+                        }
+                    }
+
+                    if (userID && jsonData[userID]) {
+                        const data = jsonData[userID];
+                        const diseasesList = data.diseases.map(disease => `<li>${disease}</li>`).join('');
+                        const allergiesList = data.allergies.map(allergy => `<li>${allergy}</li>`).join('');
+                        const medicationsList = data.current_medications.map(medication => `<li>${medication}</li>`).join('');
+
+                        const html = `
+                            <h2>${data.name}</h2>
+                            <h3>Diseases</h3>
+                            <ul>${diseasesList}</ul>
+                            <h3>Allergies</h3>
+                            <ul>${allergiesList}</ul>
+                            <h3>Current Medications</h3>
+                            <ul>${medicationsList}</ul>
+                            <h3>ICE Numbers</h3>
+                            <p>Facility: ${data.ice_numbers.facility}</p>
+                            <p>Help: ${data.ice_numbers.help}</p>
+                            <h3>Facility Name & Address</h3>
+                            <p>${data.facility_info.name}, ${data.facility_info.address}</p>
+                        `;
+                        output.innerHTML = html;
+                    } else {
+                        output.innerHTML = "<span style='color: red;'>No data found for this user ID.</span>";
+                    }
+                };
+
+                nfcReader.onerror = () => {
+                    output.innerHTML = "<span style='color: red;'>Error reading NFC card. Please try again.</span>";
+                };
+            } catch (error) {
+                output.innerHTML = `<span style='color: red;'>Error: ${error.message}</span>`;
+            }
+        });
+    </script>
+</body>
+</html>
